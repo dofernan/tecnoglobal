@@ -1,15 +1,14 @@
 import streamlit as st
 import pandas as pd
-import pyodbc
+import pymssql
 from io import BytesIO
 
-# Conexión a SQL Server
-conn = pyodbc.connect(
-    'DRIVER={ODBC Driver 17 for SQL Server};'
-    'SERVER=192.168.1.101;'
-    'DATABASE=Sli;'
-    'UID=reportes;'
-    'PWD=reportes01;'
+# Conexión a SQL Server con pymssql
+conn = pymssql.connect(
+    server='192.168.1.101',
+    user='reportes',
+    password='reportes01',
+    database='Sli'
 )
 
 # Título de la aplicación
@@ -22,7 +21,7 @@ fecha_fin = st.date_input("Fecha de fin")
 # Botón para consultar
 if st.button("Consultar"):
     with st.spinner("Consultando datos..."):
-        query = f"""
+        query = """
         SELECT 
             DinCab.Despacho, DinCab.NumIdentif, CONVERT(VARCHAR(10), Dincab.FecAcep, 103) as Fecha, Ape.Ref_Cliente,
             DinCab.Consignatario, DinItems.Item, DinItems.CIP, DinItems.Arancel, DinItems.Mercancia, DinItems.Marca, DinItems.Variedad,
@@ -34,11 +33,13 @@ if st.button("Consultar"):
         INNER JOIN Sli..Din_Items DinItems ON DinCab.Despacho = DinItems.Despacho
         LEFT JOIN Sli..UnidMedida UniMed ON DinItems.Id_UnidMedida = UniMed.Id_Adu_UnidMed
         WHERE DinCab.Id_Cliente IN('968230204', '836281004', '867312005')
-            AND Dincab.FecAcep BETWEEN ? AND ?
+            AND Dincab.FecAcep BETWEEN %s AND %s
             AND Ape.Nulo = 0
             AND DinItems.Arancel IN('84433214', '84433110', '84714900', '84713040', '84713030', '84715000', '84433217')
         ORDER BY DinCab.Cliente, DinCab.FecAcep
         """
+
+        # Ejecutar consulta y cargar en DataFrame
         df = pd.read_sql(query, conn, params=[fecha_inicio, fecha_fin])
         st.success(f"{len(df)} filas encontradas.")
         st.dataframe(df)
